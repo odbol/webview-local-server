@@ -170,10 +170,15 @@ public class WebViewLocalServer {
         }
     }
 
-    /*package*/ WebViewLocalServer(AndroidProtocolHandler protocolHandler) {
+    /*package*/ WebViewLocalServer(AndroidProtocolHandler protocolHandler, String authority) {
         uriMatcher = new UriMatcher(null);
         this.protocolHandler = protocolHandler;
-        authority = UUID.randomUUID().toString() + "." + knownUnusedAuthority;
+
+        if (authority == null) {
+            this.authority = UUID.randomUUID().toString() + "." + knownUnusedAuthority;
+        } else {
+            this.authority = authority;
+        }
     }
 
     /**
@@ -181,10 +186,10 @@ public class WebViewLocalServer {
      *
      * @param context context used to resolve resources/assets/
      */
-    public WebViewLocalServer(Context context) {
+    public WebViewLocalServer(Context context, String authority) {
         // We only need the context to resolve assets and resources so the ApplicationContext is
         // sufficient while holding on to an Activity context could cause leaks.
-        this(new AndroidProtocolHandler(context.getApplicationContext()));
+        this(new AndroidProtocolHandler(context.getApplicationContext()), authority);
     }
 
     private static Uri parseAndVerifyUrl(String url) {
