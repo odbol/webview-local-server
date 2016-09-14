@@ -15,6 +15,7 @@ limitations under the License.
  */
 package com.google.webviewlocalserver;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
@@ -227,11 +228,14 @@ public class WebViewLocalServer {
      * @param request the request to process.
      * @return a response if the request URL had a matching handler, null if no handler was found.
      */
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public WebResourceResponse shouldInterceptRequest(WebResourceRequest request) {
         PathHandler handler;
+
         synchronized (uriMatcher) {
             handler = (PathHandler) uriMatcher.match(request.getUrl());
         }
+
         if (handler == null) {
             return null;
         }
