@@ -16,7 +16,6 @@ limitations under the License.
 package com.google.webviewlocalserver;
 
 import android.content.Context;
-import android.graphics.Path;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
@@ -66,7 +65,7 @@ public class WebViewLocalServer {
      * The androidplatform.net domain currently belongs to Google and has been reserved for the
      * purpose of Android applications intercepting navigations/requests directed there.
      */
-    public final static String knownUnusedAuthority = "androidplatform.net";
+    public final static String KNOWN_UNUSED_AUTHORITY = "androidplatform.net";
     private final static String httpScheme = "http";
     private final static String httpsScheme = "https";
 
@@ -170,12 +169,16 @@ public class WebViewLocalServer {
         }
     }
 
+    /*package*/ WebViewLocalServer(AndroidProtocolHandler protocolHandler) {
+        this(protocolHandler, KNOWN_UNUSED_AUTHORITY);
+    }
+
     /*package*/ WebViewLocalServer(AndroidProtocolHandler protocolHandler, String authority) {
         uriMatcher = new UriMatcher(null);
         this.protocolHandler = protocolHandler;
 
         if (authority == null) {
-            this.authority = UUID.randomUUID().toString() + "." + knownUnusedAuthority;
+            this.authority = UUID.randomUUID().toString() + "." + KNOWN_UNUSED_AUTHORITY;
         } else {
             this.authority = authority;
         }
@@ -186,6 +189,12 @@ public class WebViewLocalServer {
      *
      * @param context context used to resolve resources/assets/
      */
+    public WebViewLocalServer(Context context) {
+        // We only need the context to resolve assets and resources so the ApplicationContext is
+        // sufficient while holding on to an Activity context could cause leaks.
+        this(new AndroidProtocolHandler(context.getApplicationContext()));
+    }
+
     public WebViewLocalServer(Context context, String authority) {
         // We only need the context to resolve assets and resources so the ApplicationContext is
         // sufficient while holding on to an Activity context could cause leaks.
@@ -355,15 +364,6 @@ public class WebViewLocalServer {
                     return null;
                 }
 
-                String mimeType = null;
-                try {
-                    mimeType = URLConnection.guessContentTypeFromName(path);
-                    if (mimeType == null)
-                        mimeType = URLConnection.guessContentTypeFromStream(stream);
-                } catch (Exception ex) {
-                    Log.e(TAG, "Unable to get mime type" + url);
-                }
-
                 return stream;
             }
         };
@@ -377,6 +377,49 @@ public class WebViewLocalServer {
             httpsPrefix = uriBuilder.build();
             register(Uri.withAppendedPath(httpsPrefix, "**"), handler);
         }
+        return new AssetHostingDetails(httpPrefix, httpsPrefix);
+    }
+
+    public AssetHostingDetails hostContents(final String domain,
+                                            final String virtualResourcesPath, boolean enableHttp,
+                                            boolean enableHttps) {
+        if (virtualResourcesPath.indexOf('*') != -1) {
+            throw new IllegalArgumentException(
+                    "virtualResourcesPath cannot contain the '*' character.");
+        }
+
+        Uri.Builder uriBuilder = new Uri.Builder();
+        uriBuilder.scheme(httpScheme);
+        uriBuilder.authority(domain);
+        uriBuilder.path(virtualResourcesPath);
+
+        Uri httpPrefix = null;
+        Uri httpsPrefix = null;
+
+        PathHandler handler = new PathHandler() {
+            @Override
+            public InputStream handle(Uri url) {
+                try {
+                    return protocolHandler.openContent(url);
+                } catch (IOException ex) {
+                    Log.e(TAG, "Unable to get mime type" + url);
+                }
+
+                return null;
+            }
+        };
+
+        if (enableHttp) {
+            httpPrefix = uriBuilder.build();
+            register(Uri.withAppendedPath(httpPrefix, "**"), handler);
+        }
+
+        if (enableHttps) {
+            uriBuilder.scheme(httpsScheme);
+            httpsPrefix = uriBuilder.build();
+            register(Uri.withAppendedPath(httpsPrefix, "**"), handler);
+        }
+
         return new AssetHostingDetails(httpPrefix, httpsPrefix);
     }
 

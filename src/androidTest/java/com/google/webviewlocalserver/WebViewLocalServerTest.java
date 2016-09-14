@@ -74,10 +74,16 @@ public class WebViewLocalServerTest extends InstrumentationTestCase {
         public InputStream openResource(Uri uri) {
             return null;
         }
+
+        @Override
+        public InputStream openContent(Uri uri) throws IOException {
+            return null;
+        }
     }
 
     public void testCustomPathHandler() {
-        WebViewLocalServer assetServer = new WebViewLocalServer(new MockProtocolHandler());
+        WebViewLocalServer assetServer = new WebViewLocalServer(new MockProtocolHandler(),
+                WebViewLocalServer.KNOWN_UNUSED_AUTHORITY);
         final String contents = RandomString.next(2000);
         final String encoding = "utf-8";
 
@@ -120,7 +126,7 @@ public class WebViewLocalServerTest extends InstrumentationTestCase {
                 }
                 return null;
             }
-        });
+        }, WebViewLocalServer.KNOWN_UNUSED_AUTHORITY);
 
         WebViewLocalServer.AssetHostingDetails details =
                 assetServer.hostAssets("androidplatform.net", "/www", "/assets", true, true);
@@ -149,7 +155,7 @@ public class WebViewLocalServerTest extends InstrumentationTestCase {
                 }
                 return null;
             }
-        });
+        }, WebViewLocalServer.KNOWN_UNUSED_AUTHORITY);
 
         WebViewLocalServer.AssetHostingDetails details =
             assetServer.hostResources("androidplatform.net", "/res", true, true);

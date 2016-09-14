@@ -28,6 +28,11 @@ public class AndroidProtocolHandler {
         return context.getAssets().open(path, AssetManager.ACCESS_STREAMING);
     }
 
+    public InputStream openContent(Uri uri) throws IOException {
+        return context.getContentResolver()
+                .openInputStream(uri);
+    }
+
     public InputStream openResource(Uri uri) {
         assert uri.getPath() != null;
         // The path must be of the form ".../asset_type/asset_name.ext".
