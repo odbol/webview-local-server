@@ -29,8 +29,17 @@ public class AndroidProtocolHandler {
     }
 
     public InputStream openContent(Uri uri) throws IOException {
+        List<String> pathSegments = uri.getPathSegments();
+        String contentAuth = pathSegments.get(pathSegments.size() - 3);
+        String contentDir = pathSegments.get(pathSegments.size() - 2);
+        String contentName = pathSegments.get(pathSegments.size() - 1);
+
+        Uri composedUri = Uri.parse("content://" + contentAuth
+                + "/" + contentDir
+                + "/" + contentName);
+
         return context.getContentResolver()
-                .openInputStream(uri);
+                .openInputStream(composedUri);
     }
 
     public InputStream openResource(Uri uri) {
