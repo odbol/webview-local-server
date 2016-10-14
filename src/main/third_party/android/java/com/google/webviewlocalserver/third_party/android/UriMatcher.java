@@ -17,7 +17,9 @@ package com.google.webviewlocalserver.third_party.android;
 
 import android.net.Uri;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -112,6 +114,63 @@ public class UriMatcher
             }
         }
         node.mCode = code;
+    }
+
+    public void removeURI(String scheme, String authority, String path)
+    {
+        String[] tokens = null;
+        if (path != null) {
+            String newPath = path;
+            // Strip leading slash if present.
+            if (path.length() > 0 && path.charAt(0) == '/') {
+                newPath = path.substring(1);
+            }
+            tokens = PATH_SPLIT_PATTERN.split(newPath);
+        }
+
+        int numTokens = tokens != null ? tokens.length : 0;
+        UriMatcher node = this;
+        Deque<UriMatcher> toRemoveNode = new ArrayDeque<>(numTokens);
+        for (int i = -2; i < numTokens; i++) {
+            String token;
+            if (i == -2)
+                token = scheme;
+            else if (i == -1)
+                token = authority;
+            else
+                token = tokens[i];
+            ArrayList<UriMatcher> children = node.mChildren;
+            int numChildren = children.size();
+            UriMatcher child;
+            int j;
+            for (j = 0; j < numChildren; j++) {
+                child = children.get(j);
+                if (token.equals(child.mText)) {
+                    node = child;
+                    toRemoveNode.addFirst(child);
+                    break;
+                }
+            }
+        }
+
+        UriMatcher tail = toRemoveNode.pollFirst();
+        while (tail != null) {
+            if (toRemoveNode.isEmpty()) {
+                mChildren.remove(tail);
+                break;
+            } else {
+                UriMatcher prev = tail;
+                // parent
+                tail = toRemoveNode.pollFirst();
+
+                tail.mChildren.remove(prev);
+
+                // stop removing the node if the parent is holding someone else
+                if (tail.mChildren.size() > 0) {
+                    break;
+                }
+            }
+        }
     }
 
     static final Pattern PATH_SPLIT_PATTERN = Pattern.compile("/");

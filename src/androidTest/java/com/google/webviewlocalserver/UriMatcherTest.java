@@ -84,5 +84,57 @@ public class UriMatcherTest extends InstrumentationTestCase {
         assertNull(matcher.match(Uri.parse("http://org.chromium/path#asd")));
         assertNull(matcher.match(Uri.parse("http://org.chromium/other/path")));
     }
+
+    public void testRemoveUriSingle() {
+        Object pathMatch = new Object();
+        UriMatcher matcher = new UriMatcher(nullObject);
+        matcher.addURI("http", "org.chromium", "/path/a/**", pathMatch);
+
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/c")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/e")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d/e")));
+
+        matcher.removeURI("http", "org.chromium", "/path/a/**");
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/c")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/e")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d/e")));
+    }
+
+    public void testRemoveUri() {
+        Object pathMatch = new Object();
+        UriMatcher matcher = new UriMatcher(nullObject);
+        matcher.addURI("http", "org.chromium", "/path/a/c/**", pathMatch);
+        matcher.addURI("http", "org.chromium", "/path/a/b/c/**", pathMatch);
+        matcher.addURI("http", "org.chromium", "/path/a/b/d/**", pathMatch);
+        matcher.addURI("http", "org.chromium", "/path/a/b/k/**", pathMatch);
+
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/c/e")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/d/t")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/k/d")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/k/d/e")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d/e")));
+
+        matcher.removeURI("http", "org.chromium", "/path/a/b/k/**");
+
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/k/d/e")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/k/d")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/k/d")));
+
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/c/e")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/b/d/t")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d")));
+        assertEquals(pathMatch, matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d/e")));
+
+        matcher.removeURI("http", "org.chromium", "/path/**");
+
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/c/e")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/b/d/t")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d")));
+        assertNull(matcher.match(Uri.parse("http://org.chromium/path/a/c/c/d/e")));
+    }
 }
+
 

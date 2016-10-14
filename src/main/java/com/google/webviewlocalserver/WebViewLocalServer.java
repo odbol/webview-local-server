@@ -292,6 +292,12 @@ public class WebViewLocalServer {
         }
     }
 
+    void unregister(Uri uri) {
+        synchronized (uriMatcher) {
+            uriMatcher.removeURI(uri.getScheme(), uri.getAuthority(), uri.getPath());
+        }
+    }
+
     /**
      * Hosts the application's assets on an http(s):// URL. Assets from the local path
      * <code>assetPath/...</code> will be available under
@@ -425,6 +431,28 @@ public class WebViewLocalServer {
         }
 
         return new AssetHostingDetails(httpPrefix, httpsPrefix);
+    }
+
+
+    public void disablePath(final String domain, final String virtualAssetPath,
+                           boolean disableHttp, boolean disableHttps) {
+        Uri.Builder uriBuilder = new Uri.Builder();
+        uriBuilder.scheme(httpScheme);
+        uriBuilder.authority(domain);
+        uriBuilder.path(virtualAssetPath);
+
+        if (virtualAssetPath.indexOf('*') != -1) {
+            throw new IllegalArgumentException(
+                    "virtualAssetPath cannot contain the '*' character.");
+        }
+
+        if (disableHttp) {
+            unregister(Uri.withAppendedPath(uriBuilder.build(), "**"));
+        }
+
+        if (disableHttps) {
+            unregister(Uri.withAppendedPath(uriBuilder.scheme(httpsScheme).build(), "**"));
+        }
     }
 
     /**
