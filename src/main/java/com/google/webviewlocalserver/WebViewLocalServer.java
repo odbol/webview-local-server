@@ -89,21 +89,17 @@ public class WebViewLocalServer {
      * minimum.
      */
     public abstract static class PathHandler {
-        private String mimeType;
-        private String encoding;
         private String charset;
         private int statusCode;
         private String reasonPhrase;
         private Map<String, String> responseHeaders;
 
         public PathHandler() {
-            this(null, null, null, 200, "OK", null);
+            this(null, 200, "OK", null);
         }
 
-        public PathHandler(String mimeType, String encoding, String charset, int statusCode,
+        public PathHandler(String charset, int statusCode,
                            String reasonPhrase, Map<String, String> responseHeaders) {
-            this.mimeType = mimeType;
-            this.encoding = encoding;
             this.charset = charset;
             this.statusCode = statusCode;
             this.reasonPhrase = reasonPhrase;
@@ -115,14 +111,6 @@ public class WebViewLocalServer {
         }
 
         abstract public InputStream handle(Uri url);
-
-        public String getMimeType() {
-            return mimeType;
-        }
-
-        public String getEncoding() {
-            return encoding;
-        }
 
         public String getCharset() {
             return charset;
@@ -240,9 +228,10 @@ public class WebViewLocalServer {
             return null;
         }
 
-        return new WebResourceResponse(handler.getMimeType(), handler.getEncoding(),
+        LollipopLazyInputStream stream = new LollipopLazyInputStream(handler, request);
+        return new WebResourceResponse(stream.getMimeType(), stream.getEncoding(),
                 handler.getStatusCode(), handler.getReasonPhrase(), handler.getResponseHeaders(),
-                new LollipopLazyInputStream(handler, request));
+                stream);
     }
 
     /**
@@ -265,11 +254,12 @@ public class WebViewLocalServer {
             return null;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            return new WebResourceResponse(handler.getMimeType(), handler.getEncoding(),
-                    new LegacyLazyInputStream(handler, uri));
+            LegacyLazyInputStream stream = new LegacyLazyInputStream(handler, uri);
+            return new WebResourceResponse(stream.getMimeType(), stream.getEncoding(),
+                    stream);
         } else {
             InputStream is = handler.handle(uri);
-            return new WebResourceResponse(handler.getMimeType(), handler.getEncoding(),
+            return new WebResourceResponse(guessMimeType(is, uri), guessEncoding(is, uri),
                     is);
         }
     }
@@ -370,7 +360,7 @@ public class WebViewLocalServer {
                 try {
                     stream = protocolHandler.openAsset(path);
                 } catch (IOException e) {
-                    Log.e(TAG, "Unable to open asset URL: " + url);
+                    Log.e(TAG, "Unable to open asset URL: " + url + " (from " + path + ")");
                     return null;
                 }
 
@@ -542,10 +532,13 @@ public class WebViewLocalServer {
      */
     private static abstract class LazyInputStream extends InputStream {
         protected final PathHandler handler;
+        protected final Uri url;
+
         private InputStream is = null;
 
-        public LazyInputStream(PathHandler handler) {
+        public LazyInputStream(PathHandler handler, Uri url) {
             this.handler = handler;
+            this.url = url;
         }
 
         private InputStream getInputStream() {
@@ -586,6 +579,14 @@ public class WebViewLocalServer {
             InputStream is = getInputStream();
             return (is != null) ? is.skip(n) : 0;
         }
+
+        public String getMimeType() {
+           return guessMimeType(getInputStream(), url);
+        }
+
+        public String getEncoding() {
+            return guessEncoding(getInputStream(), url);
+        }
     }
 
     // For earlier than L.
@@ -594,7 +595,7 @@ public class WebViewLocalServer {
         private InputStream is;
 
         public LegacyLazyInputStream(PathHandler handler, Uri uri) {
-            super(handler);
+            super(handler, uri);
             this.uri = uri;
         }
 
@@ -610,7 +611,7 @@ public class WebViewLocalServer {
         private InputStream is;
 
         public LollipopLazyInputStream(PathHandler handler, WebResourceRequest request) {
-            super(handler);
+            super(handler, request.getUrl());
             this.request = request;
         }
 
@@ -618,5 +619,23 @@ public class WebViewLocalServer {
         protected InputStream handle() {
             return handler.handle(request);
         }
+    }
+
+    public static String guessMimeType(InputStream inputStream, Uri url) {
+        String mimeType = null;
+        try {
+            mimeType = URLConnection.guessContentTypeFromName(url.getLastPathSegment());
+            if (mimeType == null) {
+                mimeType = URLConnection.guessContentTypeFromStream(inputStream);
+            }
+        } catch (Exception ex){
+            Log.e(TAG, "Unable to get mime type for " + url);
+        }
+
+        return mimeType;
+    }
+
+    public static String guessEncoding(InputStream inputStream, Uri url) {
+        return null;
     }
 }
